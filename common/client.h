@@ -699,4 +699,6 @@ extern GTimer* global_time;
 extern bool debug_protocol;
 char *printable(void *data, int len);
 
+const char* data_path(const char path[static 1]);
+
 #endif

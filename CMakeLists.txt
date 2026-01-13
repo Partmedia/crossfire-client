@@ -67,10 +67,7 @@ set(CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
 check_include_files(gio/gnetworking.h HAVE_GIO_GNETWORKING_H)
 check_include_files(sys/capsicum.h HAVE_CAPSICUM)
 
-configure_file(
-    "${PROJECT_SOURCE_DIR}/config.h.in"
-    "${PROJECT_BINARY_DIR}/config.h"
-)
+configure_file("config.h.in" "config.h")
 
 add_subdirectory(common)
 add_subdirectory(gtk-v2)

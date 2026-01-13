@@ -40,7 +40,7 @@ GtkComboBoxText *config_combobox_faceset;
 GtkComboBox *config_combobox_displaymode, *config_combobox_lighting;
 GtkRange *config_music_volume;
 
-#define THEME_DEFAULT CF_DATADIR "/themes/Standard"
+#define THEME_DEFAULT "/themes/Standard"
 
 /* Configuration variables initialized to NULL, set by config_load() */
 static char *theme;
@@ -183,7 +183,7 @@ void load_theme(int reload) {
         if (access(theme, R_OK) == -1) {
             LOG(LOG_ERROR, "load_theme", "Unable to find theme file %s", theme);
             g_free(theme);
-            theme = g_strdup(THEME_DEFAULT);
+            theme = g_strdup(data_path(THEME_DEFAULT));
         }
         gtk_rc_add_default_file(theme);
     }
@@ -498,7 +498,7 @@ void config_load() {
     }
 
     if (theme == NULL) {
-        theme = g_strdup(THEME_DEFAULT);
+        theme = g_strdup(data_path(THEME_DEFAULT));
     }
 
     if (face_info.want_faceset == NULL) {

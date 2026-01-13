@@ -33,9 +33,6 @@ extern GtkWidget *connect_window;
 #define DEFAULT_IMAGE_SIZE      32
 extern int map_image_size, image_size;
 
-#define DEFAULT_UI CF_DATADIR "/ui/gtk-v2.ui"
-#define DIALOG_FILENAME CF_DATADIR "/ui/dialogs.ui"
-
 /** Path to the current UI file. */
 extern char window_xml_file[MAX_BUF];
 

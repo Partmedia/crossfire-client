@@ -39,6 +39,9 @@
 #include "sound.h"
 #include "gtk2proto.h"
 
+#define DEFAULT_UI "/ui/gtk-v2.ui"
+#define DIALOG_FILENAME "/ui/dialogs.ui"
+
 /* Sets up the basic colors. */
 static const char *const colorname[NUM_COLORS] = {
     "Black",                /* 0  */
@@ -118,6 +121,12 @@ static int do_scriptout() {
     return (TRUE);
 }
 #endif /* WIN32 */
+
+const char* data_path(const char path[static 1]) {
+    static char buf[MAX_BUF];
+    snprintf(buf, sizeof(buf), "%s%s", CF_DATADIR, path);
+    return buf;
+}
 
 static gboolean script_launch(const gchar *option_name, const gchar *value, gpointer data, GError **error)
 {
@@ -380,18 +389,18 @@ static void init_ui() {
 
     /* Load dialog windows using GtkBuilder. */
     dialog_xml = gtk_builder_new();
-    if (!gtk_builder_add_from_file(dialog_xml, DIALOG_FILENAME, &error)) {
+    if (!gtk_builder_add_from_file(dialog_xml, data_path(DIALOG_FILENAME), &error)) {
         error_dialog("Couldn't load UI dialogs.", error->message);
         g_error_free(error);
         exit(EXIT_FAILURE);
     }
-    LOG(LOG_DEBUG, "init_ui", "loaded dialog_xml '%s'", DIALOG_FILENAME);
+    LOG(LOG_DEBUG, "init_ui", "loaded dialog_xml '%s'", data_path(DIALOG_FILENAME));
 
     /* Load main window using GtkBuilder. */
     window_xml = gtk_builder_new();
     if (init_ui_layout(window_xml_file) == NULL) {
         LOG(LOG_DEBUG, "init_ui_layout", "Could not initialize '%s', using default layout", window_xml_file);
-        if (init_ui_layout(DEFAULT_UI) == NULL) {
+        if (init_ui_layout(data_path(DEFAULT_UI)) == NULL) {
             g_error("Could not load default layout!");
         }
     }
