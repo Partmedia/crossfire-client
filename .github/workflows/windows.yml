@@ -2,7 +2,6 @@ name: Windows Build
 
 on:
   push:
-    branches: [ master ]
   pull_request:
     branches: [ master ]
 
@@ -21,13 +20,11 @@ jobs:
         shell: pwsh
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up MSYS2 with MinGW64 dependencies
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
           update: true
           install: >-
             mingw-w64-x86_64-sdl2_mixer
@@ -36,11 +33,8 @@ jobs:
             mingw-w64-x86_64-perl
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-vala
-
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: latest
+          pacboy: >-
+            cmake:p
 
       - name: Install NSIS
         run: choco install nsis --no-progress -y
@@ -48,15 +42,11 @@ jobs:
       - name: Configure with CMake
         run: |
           $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          cmake `
-            -S "${{ github.workspace }}" `
-            -B "${{ github.workspace }}\build" `
-            -G "MinGW Makefiles"
+          cmake
 
       - name: Build
         run: |
-          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          mingw32-make.exe -C "${{ github.workspace }}\build" -j4
+          cmake --build .
 
       - name: Install
         run: |
