@@ -29,9 +29,7 @@ pkg_check_modules(GTK gtk+-2.0 gio-2.0 REQUIRED)
 find_package(PNG REQUIRED)
 find_package(Perl REQUIRED)
 find_package(Vala REQUIRED)
-if(NOT WIN32 AND NOT MINGW)
-    find_package(X11 REQUIRED)
-endif()
+find_package(X11 REQUIRED)
 add_definitions(
     ${GTK_CFLAGS_OTHER}
     ${PNG_DEFINITIONS}
