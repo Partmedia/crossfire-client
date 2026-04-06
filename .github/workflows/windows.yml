@@ -27,7 +27,7 @@ jobs:
         with:
           update: true
           install: >-
-            mingw-w64-x86_64-sdl2_mixer
+            mingw-w64-x86_64-SDL2_mixer
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
             mingw-w64-x86_64-perl
@@ -42,11 +42,12 @@ jobs:
       - name: Configure with CMake
         run: |
           $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          cmake
+          cmake -B build -S . -G "MinGW Makefiles"
 
       - name: Build
         run: |
-          cmake --build .
+          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
+          cmake --build build
 
       - name: Install
         run: |
