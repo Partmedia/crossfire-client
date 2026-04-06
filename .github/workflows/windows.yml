@@ -40,14 +40,12 @@ jobs:
         run: choco install nsis --no-progress -y
 
       - name: Configure with CMake
-        run: |
-          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          cmake -B build -S . -G "MinGW Makefiles"
+        shell: msys2 {0}
+        run: cmake -B build -S . -G "MinGW Makefiles"
 
       - name: Build
-        run: |
-          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          cmake --build build
+        shell: msys2 {0}
+        run: cmake --build build
 
       - name: Install
         run: |
