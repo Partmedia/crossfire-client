@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ master ]
 
+permissions:
+  contents: read
+
+env:
+  MSYS2_DIR: C:\msys64
+
 jobs:
   build:
     runs-on: windows-latest
@@ -24,7 +30,7 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-sdl2_mixer
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
             mingw-w64-x86_64-perl
@@ -41,7 +47,7 @@ jobs:
 
       - name: Configure with CMake
         run: |
-          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
           cmake `
             -S "${{ github.workspace }}" `
             -B "${{ github.workspace }}\build" `
@@ -49,18 +55,19 @@ jobs:
 
       - name: Build
         run: |
-          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
           mingw32-make.exe -C "${{ github.workspace }}\build" -j4
 
       - name: Install
         run: |
-          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
           mingw32-make.exe -C "${{ github.workspace }}\build" install
 
       - name: Assemble release directory
         run: |
           $builddir   = "${{ github.workspace }}\build"
           $releasedir = "${{ github.workspace }}\release"
+          $msys2dir   = $env:MSYS2_DIR
 
           New-Item -Path $releasedir -ItemType Directory | Out-Null
 
@@ -69,24 +76,29 @@ jobs:
 
           # Copy GTK runtime files from MinGW
           New-Item -Path "$releasedir\lib" -ItemType Directory | Out-Null
-          Copy-Item -Path "C:\msys64\mingw64\lib\gtk-2.0"       -Destination "$releasedir\lib"   -Recurse
-          Copy-Item -Path "C:\msys64\mingw64\lib\gdk-pixbuf-2.0" -Destination "$releasedir\lib"  -Recurse
-          Copy-Item -Path "C:\msys64\mingw64\share\themes"       -Destination "$releasedir\share" -Recurse
+          Copy-Item -Path "$msys2dir\mingw64\lib\gtk-2.0"        -Destination "$releasedir\lib"   -Recurse
+          Copy-Item -Path "$msys2dir\mingw64\lib\gdk-pixbuf-2.0" -Destination "$releasedir\lib"   -Recurse
+          Copy-Item -Path "$msys2dir\mingw64\share\themes"        -Destination "$releasedir\share" -Recurse
 
           # Copy the compiled binary
           Copy-Item "$builddir\bin\crossfire-client-gtk2.exe" $releasedir
 
-          # Use ldd to collect required MinGW DLLs
-          C:\msys64\usr\bin\ldd.exe "$releasedir\crossfire-client-gtk2.exe" |
+          # Use ldd to collect required MinGW DLLs. The output format is:
+          #   libname.dll => /mingw64/bin/libname.dll (0x...)
+          # so split on space and take field [2] to get the Unix-style path,
+          # then regex-extract just the filename portion after /mingw64/bin/.
+          $dlls = $env:MSYS2_DIR\usr\bin\ldd.exe "$releasedir\crossfire-client-gtk2.exe" |
             ForEach-Object { $_.Split(' ')[2] } |
             Select-String -Pattern '(?<=\/mingw64\/bin\/).*' |
-            ForEach-Object { $_.Matches.Value } |
-            ForEach-Object { Copy-Item "C:\msys64\mingw64\bin\$_" $releasedir }
+            ForEach-Object { $_.Matches.Value }
+
+          if (-not $dlls) { throw "ldd returned no MinGW DLLs; check that ldd is working correctly." }
+          $dlls | ForEach-Object { Copy-Item "$msys2dir\mingw64\bin\$_" $releasedir }
 
           # SDL loads ogg/vorbis DLLs lazily, so ldd misses them — copy manually
-          Copy-Item C:\msys64\mingw64\bin\libvorbis-0.dll    $releasedir
-          Copy-Item C:\msys64\mingw64\bin\libvorbisfile-3.dll $releasedir
-          Copy-Item C:\msys64\mingw64\bin\libogg-0.dll        $releasedir
+          Copy-Item "$msys2dir\mingw64\bin\libvorbis-0.dll"     $releasedir
+          Copy-Item "$msys2dir\mingw64\bin\libvorbisfile-3.dll"  $releasedir
+          Copy-Item "$msys2dir\mingw64\bin\libogg-0.dll"         $releasedir
 
       - name: Get version info
         id: version
@@ -108,11 +120,12 @@ jobs:
           New-Item -Path $packagedir -ItemType Directory | Out-Null
 
           $zipfile = "$packagedir\crossfire-client-git-$gitver-win32_amd64.zip"
+          # -mmt1: single-threaded compression to keep memory usage predictable on CI runners
           7z a -mx9 -mmt1 -r -- $zipfile $releasedir
           if ($LASTEXITCODE -ne 0) { throw "7-zip failed with exit code $LASTEXITCODE" }
 
           pushd $packagedir
-          C:\msys64\usr\bin\sha256sum.exe "crossfire-client-git-$gitver-win32_amd64.zip" `
+          $env:MSYS2_DIR\usr\bin\sha256sum.exe "crossfire-client-git-$gitver-win32_amd64.zip" `
             > "$packagedir\crossfire-client-git-$gitver-win32_amd64.sha256"
           popd
 
@@ -135,7 +148,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "NSIS failed with exit code $LASTEXITCODE" }
 
           pushd $packagedir
-          C:\msys64\usr\bin\sha256sum.exe "CrossfireClient-git-$gitver.exe" `
+          $env:MSYS2_DIR\usr\bin\sha256sum.exe "CrossfireClient-git-$gitver.exe" `
             > "$packagedir\CrossfireClient-git-$gitver.sha256"
           popd
 
