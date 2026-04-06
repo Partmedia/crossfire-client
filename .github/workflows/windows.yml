@@ -28,7 +28,9 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-curl
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gtk2
             mingw-w64-x86_64-make
             mingw-w64-x86_64-perl
             mingw-w64-x86_64-pkg-config
