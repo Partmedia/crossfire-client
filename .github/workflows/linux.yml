@@ -1,0 +1,37 @@
+name: Linux Build
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            gcc \
+            pkg-config \
+            perl \
+            valac \
+            libgtk2.0-dev \
+            libpng-dev \
+            libx11-dev \
+            libcurl4-openssl-dev \
+            libsdl2-mixer-dev
+
+      - name: Configure with CMake
+        run: cmake -S . -B build
+
+      - name: Build
+        run: cmake --build build
