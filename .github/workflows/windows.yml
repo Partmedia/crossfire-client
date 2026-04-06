@@ -87,7 +87,7 @@ jobs:
           #   libname.dll => /mingw64/bin/libname.dll (0x...)
           # so split on space and take field [2] to get the Unix-style path,
           # then regex-extract just the filename portion after /mingw64/bin/.
-          $dlls = $env:MSYS2_DIR\usr\bin\ldd.exe "$releasedir\crossfire-client-gtk2.exe" |
+          $dlls = & "$env:MSYS2_DIR\usr\bin\ldd.exe" "$releasedir\crossfire-client-gtk2.exe" |
             ForEach-Object { $_.Split(' ')[2] } |
             Select-String -Pattern '(?<=\/mingw64\/bin\/).*' |
             ForEach-Object { $_.Matches.Value }
@@ -97,7 +97,7 @@ jobs:
 
           # SDL loads ogg/vorbis DLLs lazily, so ldd misses them — copy manually
           Copy-Item "$msys2dir\mingw64\bin\libvorbis-0.dll"     $releasedir
-          Copy-Item "$msys2dir\mingw64\bin\libvorbisfile-3.dll"  $releasedir
+          Copy-Item "$msys2dir\mingw64\bin\libvorbisfile-3.dll" $releasedir
           Copy-Item "$msys2dir\mingw64\bin\libogg-0.dll"         $releasedir
 
       - name: Get version info
@@ -125,7 +125,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "7-zip failed with exit code $LASTEXITCODE" }
 
           pushd $packagedir
-          $env:MSYS2_DIR\usr\bin\sha256sum.exe "crossfire-client-git-$gitver-win32_amd64.zip" `
+          & "$env:MSYS2_DIR\usr\bin\sha256sum.exe" "crossfire-client-git-$gitver-win32_amd64.zip" `
             > "$packagedir\crossfire-client-git-$gitver-win32_amd64.sha256"
           popd
 
@@ -148,7 +148,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "NSIS failed with exit code $LASTEXITCODE" }
 
           pushd $packagedir
-          $env:MSYS2_DIR\usr\bin\sha256sum.exe "CrossfireClient-git-$gitver.exe" `
+          & "$env:MSYS2_DIR\usr\bin\sha256sum.exe" "CrossfireClient-git-$gitver.exe" `
             > "$packagedir\CrossfireClient-git-$gitver.sha256"
           popd
 
