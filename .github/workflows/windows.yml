@@ -1,0 +1,150 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 with MinGW64 dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-perl
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-vala
+
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: latest
+
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
+
+      - name: Configure with CMake
+        run: |
+          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          cmake `
+            -S "${{ github.workspace }}" `
+            -B "${{ github.workspace }}\build" `
+            -G "MinGW Makefiles"
+
+      - name: Build
+        run: |
+          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          mingw32-make.exe -C "${{ github.workspace }}\build" -j4
+
+      - name: Install
+        run: |
+          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          mingw32-make.exe -C "${{ github.workspace }}\build" install
+
+      - name: Assemble release directory
+        run: |
+          $builddir   = "${{ github.workspace }}\build"
+          $releasedir = "${{ github.workspace }}\release"
+
+          New-Item -Path $releasedir -ItemType Directory | Out-Null
+
+          # Copy CF data files
+          Copy-Item -Path "$builddir\share" -Destination $releasedir -Recurse
+
+          # Copy GTK runtime files from MinGW
+          New-Item -Path "$releasedir\lib" -ItemType Directory | Out-Null
+          Copy-Item -Path "C:\msys64\mingw64\lib\gtk-2.0"       -Destination "$releasedir\lib"   -Recurse
+          Copy-Item -Path "C:\msys64\mingw64\lib\gdk-pixbuf-2.0" -Destination "$releasedir\lib"  -Recurse
+          Copy-Item -Path "C:\msys64\mingw64\share\themes"       -Destination "$releasedir\share" -Recurse
+
+          # Copy the compiled binary
+          Copy-Item "$builddir\bin\crossfire-client-gtk2.exe" $releasedir
+
+          # Use ldd to collect required MinGW DLLs
+          C:\msys64\usr\bin\ldd.exe "$releasedir\crossfire-client-gtk2.exe" |
+            ForEach-Object { $_.Split(' ')[2] } |
+            Select-String -Pattern '(?<=\/mingw64\/bin\/).*' |
+            ForEach-Object { $_.Matches.Value } |
+            ForEach-Object { Copy-Item "C:\msys64\mingw64\bin\$_" $releasedir }
+
+          # SDL loads ogg/vorbis DLLs lazily, so ldd misses them — copy manually
+          Copy-Item C:\msys64\mingw64\bin\libvorbis-0.dll    $releasedir
+          Copy-Item C:\msys64\mingw64\bin\libvorbisfile-3.dll $releasedir
+          Copy-Item C:\msys64\mingw64\bin\libogg-0.dll        $releasedir
+
+      - name: Get version info
+        id: version
+        run: |
+          $gitver = (git rev-parse --short HEAD)
+          $version = (Get-Content "${{ github.workspace }}\CMakeLists.txt" |
+            Select-String -Pattern '(?<=set\(VERSION ).*(?=\))' |
+            ForEach-Object { $_.Matches.Value })
+          echo "gitver=$gitver"     >> $env:GITHUB_OUTPUT
+          echo "version=$version"   >> $env:GITHUB_OUTPUT
+          echo "nsisversion=$version.0" >> $env:GITHUB_OUTPUT
+
+      - name: Create zip archive
+        run: |
+          $releasedir  = "${{ github.workspace }}\release"
+          $packagedir  = "${{ github.workspace }}\package"
+          $gitver      = "${{ steps.version.outputs.gitver }}"
+
+          New-Item -Path $packagedir -ItemType Directory | Out-Null
+
+          $zipfile = "$packagedir\crossfire-client-git-$gitver-win32_amd64.zip"
+          7z a -mx9 -mmt1 -r -- $zipfile $releasedir
+          if ($LASTEXITCODE -ne 0) { throw "7-zip failed with exit code $LASTEXITCODE" }
+
+          pushd $packagedir
+          C:\msys64\usr\bin\sha256sum.exe "crossfire-client-git-$gitver-win32_amd64.zip" `
+            > "$packagedir\crossfire-client-git-$gitver-win32_amd64.sha256"
+          popd
+
+      - name: Build NSIS installer
+        run: |
+          $releasedir   = "${{ github.workspace }}\release"
+          $packagedir   = "${{ github.workspace }}\package"
+          $sourcedir    = "${{ github.workspace }}"
+          $gitver       = "${{ steps.version.outputs.gitver }}"
+          $nsisversion  = "${{ steps.version.outputs.nsisversion }}"
+          $nsisbinary   = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+
+          & $nsisbinary /NOCD `
+            /DVERSION=$nsisversion `
+            /DGITVERSION=$gitver `
+            /DINPUTDIR=$releasedir `
+            /DSOURCELOCATION=$sourcedir `
+            /DOUTPUTDIR=$packagedir `
+            "$sourcedir\gtk-v2\win32\client.nsi"
+          if ($LASTEXITCODE -ne 0) { throw "NSIS failed with exit code $LASTEXITCODE" }
+
+          pushd $packagedir
+          C:\msys64\usr\bin\sha256sum.exe "CrossfireClient-git-$gitver.exe" `
+            > "$packagedir\CrossfireClient-git-$gitver.sha256"
+          popd
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: crossfire-client-windows-${{ steps.version.outputs.gitver }}
+          path: |
+            ${{ github.workspace }}\package\*.zip
+            ${{ github.workspace }}\package\*.exe
+            ${{ github.workspace }}\package\*.sha256
+          if-no-files-found: error
