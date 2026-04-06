@@ -37,13 +37,14 @@ jobs:
             mingw-w64-x86_64-vala
           pacboy: >-
             cmake:p
+            ninja:p
 
       - name: Install NSIS
         run: choco install nsis --no-progress -y
 
       - name: Configure with CMake
         shell: msys2 {0}
-        run: cmake -B build -S . -G "MinGW Makefiles"
+        run: cmake -B build -S . -G Ninja
 
       - name: Build
         shell: msys2 {0}

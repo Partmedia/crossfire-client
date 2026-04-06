@@ -22,7 +22,7 @@ jobs:
             libsdl2-mixer-dev
 
       - name: Configure with CMake
-        run: cmake -S . -B build
+        run: cmake -S . -B build -G Ninja
 
       - name: Build
         run: cmake --build build
