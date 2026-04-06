@@ -1,18 +1,36 @@
-name: Windows Build
+name: Build
 
 on:
   push:
   pull_request:
     branches: [ master ]
 
-permissions:
-  contents: read
-
 env:
   MSYS2_DIR: C:\msys64
 
 jobs:
-  build:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            valac \
+            libgtk2.0-dev \
+            libpng-dev \
+            libx11-dev \
+            libcurl4-openssl-dev \
+            libsdl2-mixer-dev
+
+      - name: Configure with CMake
+        run: cmake -S . -B build -G Ninja
+
+      - name: Build
+        run: cmake --build build
+
+  build-windows:
     runs-on: windows-latest
 
     defaults:
@@ -39,21 +57,17 @@ jobs:
             cmake:p
             ninja:p
 
-      - name: Install NSIS
-        run: choco install nsis --no-progress -y
-
       - name: Configure with CMake
         shell: msys2 {0}
-        run: cmake -B build -S . -G Ninja
+        run: cmake -B build -S . -G Ninja -DCMAKE_INSTALL_PREFIX=.
 
       - name: Build
         shell: msys2 {0}
         run: cmake --build build
 
       - name: Install
-        run: |
-          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          mingw32-make.exe -C "${{ github.workspace }}\build" install
+        shell: msys2 {0}
+        run: cmake --install build
 
       - name: Assemble release directory
         run: |
@@ -120,6 +134,9 @@ jobs:
           & "$env:MSYS2_DIR\usr\bin\sha256sum.exe" "crossfire-client-git-$gitver-win32_amd64.zip" `
             > "$packagedir\crossfire-client-git-$gitver-win32_amd64.sha256"
           popd
+
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
 
       - name: Build NSIS installer
         run: |
