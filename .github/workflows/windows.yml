@@ -27,8 +27,10 @@ jobs:
         with:
           update: true
           install: >-
-            mingw-w64-x86_64-sdl2_mixer
+            mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-curl
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gtk2
             mingw-w64-x86_64-make
             mingw-w64-x86_64-perl
             mingw-w64-x86_64-pkg-config
@@ -40,13 +42,12 @@ jobs:
         run: choco install nsis --no-progress -y
 
       - name: Configure with CMake
-        run: |
-          $env:PATH = "$env:MSYS2_DIR\mingw64\bin;$env:PATH"
-          cmake
+        shell: msys2 {0}
+        run: cmake -B build -S . -G "MinGW Makefiles"
 
       - name: Build
-        run: |
-          cmake --build .
+        shell: msys2 {0}
+        run: cmake --build build
 
       - name: Install
         run: |
